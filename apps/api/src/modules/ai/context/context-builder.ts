@@ -9,7 +9,7 @@ export interface SessionMeta {
   today: string;
 }
 
-const TOKEN_BUDGET_CHARS = 60_000;
+const TOKEN_BUDGET_CHARS = 120_000;
 
 export function buildDiagramContext(doc: DiagramDocument) {
   return {
@@ -55,13 +55,16 @@ function summarize(doc: DiagramDocument) {
     name: doc.name,
     dialect: doc.dialect,
     entities: doc.entities.map((e) => ({ id: e.id, name: e.name, columnCount: e.columns.length })),
+    // 관계는 전체 보존(컬럼 매핑 포함) — "전체 관계 기반" 분석/정규화에 필요. 컬럼 상세는 getTableDetails로.
     relationships: doc.relationships.map((r) => ({
       id: r.id,
       sourceEntityId: r.sourceEntityId,
+      sourceColumnIds: r.sourceColumnIds,
       targetEntityId: r.targetEntityId,
+      targetColumnIds: r.targetColumnIds,
       cardinality: r.cardinality,
     })),
-    _note: "Large diagram: tables summarized (names + column counts only). Call getTableDetails(tableId) to see a table's full columns/indexes/relationships.",
+    _note: "Large diagram: tables summarized (names + column counts). Relationships are FULL. Call getTableDetails(tableId) for a table's columns/indexes.",
   };
 }
 
