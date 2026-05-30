@@ -10,6 +10,7 @@ import { AiSuggestColumnsDto } from "./dto/suggest-columns.dto";
 import { AiChatStreamDto, AiCreateSessionDto } from "./dto/chat-stream.dto";
 import type { AiSessionResponse } from "./dto/chat-stream.dto";
 import type { ColumnSuggestion, OrgAiSettings, AiChatConfig, AiProviderId } from "@erdify/contracts";
+import type { DiagramDocument } from "@erdify/domain";
 
 @Controller()
 @UseGuards(FlexAuthGuard)
@@ -44,6 +45,7 @@ export class AiController {
           message: dto.message,
           sessionId: dto.sessionId ?? null,
           ...(dto.model ? { model: dto.model } : {}),
+          ...(dto.document ? { document: dto.document as unknown as DiagramDocument } : {}),
           isAborted: () => aborted,
         },
         (ev) => {

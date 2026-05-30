@@ -59,6 +59,27 @@ function makeService(turns: ProviderTurn[]): { svc: Svc } {
 }
 
 describe("AiChatService.runChat", () => {
+  it("params.document(라이브 문서)가 있으면 DB 스냅샷 대신 그것으로 시스템 프롬프트를 만든다", async () => {
+    let capturedSystem = "";
+    const provider: AiProvider = {
+      streamTurn: vi.fn(async (a) => { capturedSystem = a.system; return { text: "ok", toolCalls: [] }; }),
+    };
+    const aiService = {
+      getDiagramAndOrgId: vi.fn(async () => ({ doc, orgId: "o1", diagramName: "shop" })), // 서버 스냅샷은 빈 문서
+      resolveChatCredentials: vi.fn(async () => ({ apiKey: "k", provider: "anthropic", model: "m" })),
+    };
+    const history = { findRecentTurns: vi.fn(async () => []), saveUserMessage: vi.fn(async () => undefined), saveAssistantMessage: vi.fn(async () => ({ id: "m" })) };
+    const usage = { log: vi.fn(async () => undefined) };
+    const userRepo = { findOne: vi.fn(async () => ({ name: "u", email: "e" })) };
+    const orgRepo = { findOne: vi.fn(async () => ({ name: "o" })) };
+    const svc = new AiChatService(aiService as never, history as never, new ToolExecutor(loader), usage as never, provider, provider, provider, userRepo as never, orgRepo as never);
+
+    const liveDoc = { ...doc, entities: [{ id: "e9", name: "live_only_table", schema: null, logicalName: null, comment: null, color: null, columns: [] }] };
+    await svc.runChat({ userId: "u1", diagramId: "d1", message: "분석", sessionId: "s1", document: liveDoc }, () => {});
+
+    expect(capturedSystem).toContain("live_only_table");
+  });
+
   it("도구 호출이 없으면 1회 turn 후 done을 emit한다", async () => {
     const { svc } = makeService([{ text: "안녕하세요", toolCalls: [] }]);
     const events: StreamEvent[] = [];

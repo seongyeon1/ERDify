@@ -42,6 +42,7 @@ export const sendAiChatStream = async (
   message: string,
   sessionId: string | null,
   model: string,
+  document: unknown,
   onText: (delta: string) => void,
   onDone: (result: { messageId: string; content?: string; diff: unknown[] | null; pendingDocument: unknown | null }) => void,
   onError: (message: string) => void,
@@ -53,7 +54,7 @@ export const sendAiChatStream = async (
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ diagramId, message, sessionId, ...(model ? { model } : {}) }),
+    body: JSON.stringify({ diagramId, message, sessionId, ...(model ? { model } : {}), ...(document ? { document } : {}) }),
   });
 
   if (!response.ok || !response.body) {

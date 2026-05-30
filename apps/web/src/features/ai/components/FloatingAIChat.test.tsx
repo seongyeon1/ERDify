@@ -106,11 +106,12 @@ describe("FloatingAIChat", () => {
   it("세션이 없을 때 메시지 전송 시 createSession → sendAiChatStream 순서로 호출된다", async () => {
     vi.mocked(randomUUID).mockReturnValue("user-msg-uuid");
     vi.mocked(createSession).mockResolvedValueOnce({ sessionId: "new-session-id" });
-    vi.mocked(sendAiChatStream).mockImplementation(async (_diagramId, _message, _sessionId, _model, _onText, onDone) => {
+    vi.mocked(sendAiChatStream).mockImplementation(async (_diagramId, _message, _sessionId, _model, _document, _onText, onDone) => {
       onDone({ messageId: "assistant-msg-id", diff: null, pendingDocument: null });
     });
 
     useAIChatStore.setState({ ...initialAiChatState, isOpen: true });
+    useEditorStore.setState({ document: makeEmptyDoc() });
 
     render(<FloatingAIChat diagramId="diagram-1" />);
 
@@ -124,7 +125,7 @@ describe("FloatingAIChat", () => {
     await waitFor(() => {
       expect(vi.mocked(createSession)).toHaveBeenCalledWith("diagram-1");
       expect(vi.mocked(sendAiChatStream)).toHaveBeenCalledWith(
-        "diagram-1", "테이블 추가해줘", "new-session-id", "",
+        "diagram-1", "테이블 추가해줘", "new-session-id", "", expect.anything(),
         expect.any(Function), expect.any(Function), expect.any(Function), expect.any(Function),
       );
     });
@@ -139,7 +140,7 @@ describe("FloatingAIChat", () => {
   it("sendAiChatStream onError 호출 시 에러 메시지가 sessionMessages에 추가된다", async () => {
     vi.mocked(randomUUID).mockReturnValue("error-msg-uuid");
     vi.mocked(createSession).mockResolvedValueOnce({ sessionId: "session-err" });
-    vi.mocked(sendAiChatStream).mockImplementation(async (_diagramId, _message, _sessionId, _model, _onText, _onDone, onError) => {
+    vi.mocked(sendAiChatStream).mockImplementation(async (_diagramId, _message, _sessionId, _model, _document, _onText, _onDone, onError) => {
       onError("Network error");
     });
 

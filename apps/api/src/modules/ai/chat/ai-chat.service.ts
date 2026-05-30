@@ -35,6 +35,8 @@ export interface RunChatParams {
   message: string;
   sessionId: string | null;
   model?: string;
+  /** 에디터 라이브 문서. 주어지면 DB 스냅샷 대신 이것을 기준으로 분석/수정한다(지속성 지연·빈 스냅샷 회피). */
+  document?: DiagramDocument;
   isAborted?: () => boolean;
 }
 
@@ -57,7 +59,9 @@ export class AiChatService {
   async runChat(params: RunChatParams, emit: (e: StreamEvent) => void): Promise<void> {
     const { userId, diagramId, message, sessionId } = params;
     try {
-      const { doc, orgId, diagramName } = await this.aiService.getDiagramAndOrgId(diagramId);
+      const { doc: serverDoc, orgId, diagramName } = await this.aiService.getDiagramAndOrgId(diagramId);
+      // 클라이언트가 라이브 문서를 보냈으면 그것을 기준으로(에디터 화면과 일치). 없으면 DB 스냅샷.
+      const doc = params.document ?? serverDoc;
       const { apiKey, provider, model } = await this.aiService.resolveChatCredentials(orgId, userId, params.model?.trim());
 
       const [user, org] = await Promise.all([

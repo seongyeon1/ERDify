@@ -105,7 +105,9 @@ export const FloatingAIChat = ({ diagramId }: FloatingAIChatProps) => {
     const { onText, onDone, onError } = buildStreamingCallbacks(sessionId, tempId);
 
     try {
-      await sendAiChatStream(diagramId, message, sessionId, selectedModel, onText, onDone, onError, setStreamingStatus);
+      // 에디터의 라이브 문서를 함께 보내 AI가 화면과 동일한 상태를 보게 한다(DB 스냅샷 지연 회피).
+      const liveDocument = useEditorStore.getState().document;
+      await sendAiChatStream(diagramId, message, sessionId, selectedModel, liveDocument, onText, onDone, onError, setStreamingStatus);
     } catch {
       finalizeStreamingMessage(sessionId, tempId, {
         messageId: randomUUID(),
