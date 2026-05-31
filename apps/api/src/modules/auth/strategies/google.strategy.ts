@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import type { Request } from "express";
 import { Strategy, Profile } from "passport-google-oauth20";
 
 export interface GoogleValidateResult {
@@ -21,7 +22,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     this.configured = clientID !== "not-configured";
   }
 
-  override authenticate(req: any, options?: any): void {
+  override authenticate(req: Request, options?: Record<string, unknown>): void {
     if (!this.configured) {
       this.fail({ message: "구글 로그인이 아직 준비되지 않았습니다." });
       return;
@@ -33,7 +34,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     _accessToken: string,
     _refreshToken: string,
     profile: Profile,
-    done: (error: any, user?: GoogleValidateResult) => void,
+    done: (error: Error | null, user?: GoogleValidateResult) => void,
   ): void {
     const providerId = String(profile.id);
     const providerEmail: string | undefined = profile.emails?.[0]?.value ?? undefined;

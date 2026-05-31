@@ -1,10 +1,9 @@
 import { randomUUID } from "crypto";
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Diagram, Organization, Project } from "@erdify/db";
 import type { Repository } from "typeorm";
 import { AuthorizationService } from "../../../common/services/authorization.service";
-import type { DiagramDocument } from "@erdify/domain";
 import type { CreateDiagramDto } from "../dto/create-diagram.dto";
 import type { UpdateDiagramDto } from "../dto/update-diagram.dto";
 

@@ -24,7 +24,7 @@ const makeSession = (o: Partial<McpSession> = {}): McpSession =>
     ...o,
   }) as McpSession;
 
-type MockRepo<T> = {
+type MockRepo<_T> = {
   findOne: ReturnType<typeof vi.fn>;
   find: ReturnType<typeof vi.fn>;
   create: ReturnType<typeof vi.fn>;

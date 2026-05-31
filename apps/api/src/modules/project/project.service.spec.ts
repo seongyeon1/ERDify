@@ -32,7 +32,7 @@ describe("ProjectService", () => {
     service = new ProjectService(
       projectRepo as unknown as Repository<Project>,
       authorizationService,
-      mockUsageService as any,
+      mockUsageService as never,
     );
   });
 

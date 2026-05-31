@@ -11,7 +11,7 @@ vi.mock("bcryptjs", () => ({
   compare: vi.fn()
 }));
 
-type MockRepo<T> = {
+type MockRepo<_T> = {
   findOne: ReturnType<typeof vi.fn>;
   create: ReturnType<typeof vi.fn>;
   save: ReturnType<typeof vi.fn>;

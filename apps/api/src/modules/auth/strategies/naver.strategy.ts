@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import type { Request } from "express";
 import { Strategy, Profile } from "passport-naver-v2";
 
 export interface NaverValidateResult {
@@ -21,7 +22,7 @@ export class NaverStrategy extends PassportStrategy(Strategy, "naver") {
     this.configured = clientID !== "not-configured";
   }
 
-  override authenticate(req: any, options?: any): void {
+  override authenticate(req: Request, options?: Record<string, unknown>): void {
     if (!this.configured) {
       this.fail({ message: "네이버 로그인이 아직 준비되지 않았습니다." });
       return;
@@ -33,7 +34,7 @@ export class NaverStrategy extends PassportStrategy(Strategy, "naver") {
     _accessToken: string,
     _refreshToken: string,
     profile: Profile,
-    done: (error: any, user?: NaverValidateResult) => void,
+    done: (error: Error | null, user?: NaverValidateResult) => void,
   ): void {
     const providerId = String(profile.id);
     const providerEmail: string | undefined = profile.email ?? undefined;

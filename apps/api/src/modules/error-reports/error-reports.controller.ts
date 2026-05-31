@@ -3,7 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { ErrorReportsService, type CreateErrorReportDto } from "./error-reports.service";
-import { ErrorReport, User } from "@erdify/db";
+import { User } from "@erdify/db";
 import type { ErrorType } from "@erdify/db";
 
 @Controller("error-reports")

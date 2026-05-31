@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import type { Request } from "express";
 import { Strategy, Profile } from "passport-kakao";
 
 export interface KakaoValidateResult {
@@ -21,7 +22,7 @@ export class KakaoStrategy extends PassportStrategy(Strategy, "kakao") {
     this.configured = clientID !== "not-configured";
   }
 
-  override authenticate(req: any, options?: any): void {
+  override authenticate(req: Request, options?: Record<string, unknown>): void {
     if (!this.configured) {
       this.fail({ message: "카카오 로그인이 아직 준비되지 않았습니다." });
       return;
@@ -33,15 +34,13 @@ export class KakaoStrategy extends PassportStrategy(Strategy, "kakao") {
     _accessToken: string,
     _refreshToken: string,
     profile: Profile,
-    done: (error: any, user?: KakaoValidateResult) => void,
+    done: (error: Error | null, user?: KakaoValidateResult) => void,
   ): void {
     const providerId = String(profile.id);
-    const kakaoAccount = (profile._json as any)?.kakao_account;
+    const kakaoAccount = (profile._json as { kakao_account?: { email?: string; profile?: { nickname?: string } } } | undefined)
+      ?.kakao_account;
     const providerEmail: string | undefined = kakaoAccount?.email ?? undefined;
-    const name: string =
-      (profile.displayName as string | undefined) ??
-      (kakaoAccount?.profile?.nickname as string | undefined) ??
-      "";
+    const name: string = profile.displayName ?? kakaoAccount?.profile?.nickname ?? "";
     done(null, { providerId, providerEmail, name });
   }
 }

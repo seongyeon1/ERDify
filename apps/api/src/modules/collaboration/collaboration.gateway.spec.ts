@@ -21,7 +21,6 @@ function makeSocket(overrides: Partial<Record<string, unknown>> = {}): Socket {
 
 describe("CollaborationGateway", () => {
   let gateway: CollaborationGateway;
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   const mockService = {
     joinRoom: vi.fn(),
     applyChanges: vi.fn(),

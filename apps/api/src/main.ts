@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { join } from "path";
-import cookieParser = require("cookie-parser");
-import compression = require("compression");
+import cookieParser from "cookie-parser";
+import compression from "compression";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { NestExpressApplication } from "@nestjs/platform-express";
