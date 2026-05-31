@@ -121,6 +121,45 @@ describe("AiChatService.runChat", () => {
     expect(done.diff).toBeNull();
   });
 
+  it("추출된 컨벤션을 시스템 프롬프트의 DETECTED CONVENTIONS 블록으로 주입한다", async () => {
+    const convDoc: DiagramDocument = {
+      ...doc,
+      entities: [
+        {
+          id: "e1", name: "contract", schema: null, logicalName: null, comment: null, color: null,
+          columns: [
+            { id: "c1", name: "contract_id", type: "uuid", nullable: false, primaryKey: true, unique: false, defaultValue: null, comment: "고유 식별자", ordinal: 0 },
+            { id: "c2", name: "user_id", type: "uuid", nullable: false, primaryKey: false, unique: false, defaultValue: null, comment: "사용자", ordinal: 1 },
+          ],
+        },
+      ],
+      indexes: [{ id: "i1", entityId: "e1", name: "idx_contract_user_id", columnIds: ["c2"], unique: false }],
+    };
+    let captured = "";
+    const provider: AiProvider = {
+      streamTurn: vi.fn(async (a) => {
+        captured = a.system;
+        a.onText("…");
+        return { text: "안녕", toolCalls: [] };
+      }),
+    };
+    const aiService = {
+      getDiagramAndOrgId: vi.fn(async () => ({ doc: convDoc, orgId: "o1", diagramName: "shop" })),
+      resolveChatCredentials: vi.fn(async () => ({ apiKey: "k", provider: "anthropic", model: "m" })),
+    };
+    const history = { findRecentTurns: vi.fn(async () => []), saveUserMessage: vi.fn(async () => undefined), saveAssistantMessage: vi.fn(async () => ({ id: "m" })) };
+    const usage = { log: vi.fn(async () => undefined) };
+    const userRepo = { findOne: vi.fn(async () => ({ name: "u", email: "e" })) };
+    const orgRepo = { findOne: vi.fn(async () => ({ name: "o" })) };
+    const svc = new AiChatService(aiService as never, history as never, new ToolExecutor(loader), usage as never, provider as never, provider as never, provider as never, userRepo as never, orgRepo as never, loader);
+
+    await svc.runChat({ userId: "u1", diagramId: "d1", message: "hi", sessionId: "s1" }, () => {});
+
+    expect(captured).toContain("DETECTED CONVENTIONS");
+    expect(captured).toContain("idx_<table>_<col>");
+    expect(captured).toContain("<table>_id");
+  });
+
   it("적용 전 검증에서 새 오류가 나오면 모델에게 수정을 요구하는 메시지를 다시 보낸다", async () => {
     // "bad" 이름의 엔티티가 있으면 검증 실패하도록 domain.validateDiagram을 오버라이드
     const failingDomain = {

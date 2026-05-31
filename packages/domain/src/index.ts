@@ -3,6 +3,8 @@ export { validateDiagram } from "./validation/validate-diagram.js";
 export { analyzeSchema } from "./utils/analyze-schema.js";
 export type { SchemaFinding } from "./utils/analyze-schema.js";
 export { selectRelevantTables } from "./utils/select-relevant-tables.js";
+export { detectConventions } from "./utils/detect-conventions.js";
+export type { ConventionProfile } from "./utils/detect-conventions.js";
 export { addEntity, renameEntity, removeEntity, updateEntityColor, updateEntityComment, setEntitySchema, setSeedData } from "./commands/entity-commands.js";
 export { addColumn, addColumns, updateColumn, removeColumn } from "./commands/column-commands.js";
 export { addRelationship, removeRelationship, updateRelationship } from "./commands/relationship-commands.js";

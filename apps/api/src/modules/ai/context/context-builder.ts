@@ -1,4 +1,4 @@
-import type { DiagramDocument, SchemaFinding } from "@erdify/domain";
+import type { ConventionProfile, DiagramDocument, SchemaFinding } from "@erdify/domain";
 import { buildIntentBlock, type ChatIntent } from "./intent";
 
 export interface SessionMeta {
@@ -102,11 +102,60 @@ ${lines}
 `;
 }
 
+/**
+ * 추출된 컨벤션 프로필을 프롬프트 블록으로 렌더링한다. 아는 규칙(unknown/null이 아닌 것)만
+ * 줄로 포함하고, 알아낼 규칙이 하나도 없으면 빈 문자열을 반환해 블록 자체를 생략한다 —
+ * 그러면 시스템 프롬프트의 "Database design defaults" 섹션이 그대로 적용된다.
+ * 원본 문서에서 계산되므로 "Current diagram"이 요약돼도 이 규칙은 항상 유효하다.
+ */
+function buildConventionsBlock(p?: ConventionProfile): string {
+  if (!p) return "";
+  const lines: string[] = [];
+
+  if (p.caseStyle !== "unknown") {
+    const label = p.caseStyle === "snake" ? "snake_case" : p.caseStyle === "camel" ? "camelCase" : "혼용(mixed) — 기존 컬럼과 일치시킬 것";
+    lines.push(`- 케이스: ${label}`);
+  }
+  if (p.tableNaming.number !== "unknown" || p.tableNaming.commonPrefixes.length > 0) {
+    const parts: string[] = [];
+    if (p.tableNaming.number !== "unknown") {
+      parts.push(p.tableNaming.number === "plural" ? "복수형" : p.tableNaming.number === "singular" ? "단수형" : "단/복수 혼용");
+    }
+    if (p.tableNaming.commonPrefixes.length > 0) parts.push(`공통 접두사 [${p.tableNaming.commonPrefixes.join(", ")}]`);
+    lines.push(`- 테이블명: ${parts.join(", ")}`);
+  }
+  if (p.primaryKey.pattern) {
+    lines.push(`- PK: ${p.primaryKey.pattern}${p.primaryKey.typicalType ? ` (${p.primaryKey.typicalType})` : ""}`);
+  }
+  if (p.foreignKey.pattern) lines.push(`- FK: ${p.foreignKey.pattern}`);
+  if (p.timestamps.length > 0) lines.push(`- 타임스탬프: ${p.timestamps.join(", ")}`);
+  if (p.indexNaming.indexPrefix || p.indexNaming.uniquePrefix) {
+    const parts: string[] = [];
+    if (p.indexNaming.template) parts.push(`인덱스 ${p.indexNaming.template}`);
+    else if (p.indexNaming.indexPrefix) parts.push(`인덱스 ${p.indexNaming.indexPrefix}…`);
+    if (p.indexNaming.uniquePrefix) parts.push(`유니크 ${p.indexNaming.uniquePrefix}<table>_<col>`);
+    lines.push(`- 인덱스: ${parts.join(" / ")}`);
+  }
+  if (p.comments.language !== "unknown") {
+    const lang = p.comments.language === "korean" ? "한국어" : p.comments.language === "english" ? "영어" : "혼용";
+    lines.push(`- 코멘트: ${lang}, ${p.comments.coveragePct}% 컬럼에 존재`);
+  }
+
+  if (lines.length === 0) return "";
+  return `
+## DETECTED CONVENTIONS — 이 다이어그램에서 코드로 추출한 실제 규칙 (전체 스키마 기준, 요약과 무관)
+${lines.join("\n")}
+규칙: 새 테이블/컬럼/인덱스는 위 규칙을 **그대로** 따르세요. 아래 "Current diagram"이 요약돼 있어도 위 규칙은 전체 스키마에서 계산된 것이라 항상 유효합니다.
+`;
+}
+
 export interface PromptOptions {
   /** 질의 관련 테이블 id (스키마-RAG). 큰 다이어그램에서 이 테이블만 완전히 포함한다. */
   focusTableIds?: string[];
   /** 결정적으로 분류된 사용자 의도. */
   intent?: ChatIntent;
+  /** 코드로 추출한 다이어그램 컨벤션. 새 객체 생성 시 일관성 유지에 사용한다. */
+  conventions?: ConventionProfile;
 }
 
 export function buildSystemPrompt(
@@ -123,6 +172,7 @@ export function buildSystemPrompt(
   );
   const verifiedFactsBlock = buildVerifiedFactsBlock(facts);
   const intentBlock = buildIntentBlock(options.intent ?? "general");
+  const conventionsBlock = buildConventionsBlock(options.conventions);
 
   const readToolsBlock = `
 ## Analysis / review / normalization / redesign requests (IMPORTANT)
@@ -190,7 +240,7 @@ Only fall back to the generic defaults below when the diagram has NO existing co
 - After making changes, briefly summarize what was done in the user's language.
 
 ${intentBlock}
-${verifiedFactsBlock}${readToolsBlock}
+${conventionsBlock}${verifiedFactsBlock}${readToolsBlock}
 ## Current diagram (JSON)
 ${diagramJson}`;
 }

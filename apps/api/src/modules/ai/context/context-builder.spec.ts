@@ -1,6 +1,26 @@
 import { describe, it, expect } from "vitest";
 import { buildSystemPrompt, buildDiagramContext } from "./context-builder";
-import type { DiagramDocument } from "@erdify/domain";
+import type { ConventionProfile, DiagramDocument } from "@erdify/domain";
+
+const fullConventions: ConventionProfile = {
+  caseStyle: "snake",
+  tableNaming: { number: "plural", commonPrefixes: ["contract_"] },
+  primaryKey: { pattern: "<table>_id", typicalType: "uuid" },
+  foreignKey: { pattern: "<table>_id" },
+  timestamps: ["reg_dt", "mod_dt"],
+  indexNaming: { uniquePrefix: "ux_", indexPrefix: "idx_", template: "idx_<table>_<col>" },
+  comments: { coveragePct: 92, language: "korean" },
+};
+
+const emptyConventions: ConventionProfile = {
+  caseStyle: "unknown",
+  tableNaming: { number: "unknown", commonPrefixes: [] },
+  primaryKey: { pattern: null, typicalType: null },
+  foreignKey: { pattern: null },
+  timestamps: [],
+  indexNaming: { uniquePrefix: null, indexPrefix: null, template: null },
+  comments: { coveragePct: 0, language: "unknown" },
+};
 
 const doc: DiagramDocument = {
   format: "erdify.schema.v1",
@@ -90,6 +110,21 @@ describe("buildSystemPrompt", () => {
     expect(p).toContain("intent: EDIT");
     expect(p).toContain("Grounded answer rules");
   });
+
+  it("컨벤션 프로필이 주어지면 DETECTED CONVENTIONS 블록에 실제 값을 렌더링한다", () => {
+    const p = buildSystemPrompt(doc, meta, [], { conventions: fullConventions });
+    expect(p).toContain("DETECTED CONVENTIONS");
+    expect(p).toContain("idx_<table>_<col>");
+    expect(p).toContain("ux_");
+    expect(p).toContain("contract_");
+    expect(p).toContain("reg_dt");
+    expect(p).toContain("snake");
+  });
+
+  it("추출된 컨벤션이 없으면(전부 unknown) DETECTED CONVENTIONS 블록을 생략한다", () => {
+    const p = buildSystemPrompt(doc, meta, [], { conventions: emptyConventions });
+    expect(p).not.toContain("DETECTED CONVENTIONS");
+  });
 });
 
 describe("buildSystemPrompt — focused context (large diagram)", () => {
@@ -132,5 +167,13 @@ describe("buildSystemPrompt — focused context (large diagram)", () => {
     const p = buildSystemPrompt(big, meta, []);
     expect(p).toContain("tables summarized");
     expect(p).not.toContain("t3_field_0");
+  });
+
+  it("다이어그램이 요약돼도 DETECTED CONVENTIONS 블록은 유지된다", () => {
+    const big = bigDoc();
+    const p = buildSystemPrompt(big, meta, [], { conventions: fullConventions });
+    expect(p).toContain("tables summarized");
+    expect(p).toContain("DETECTED CONVENTIONS");
+    expect(p).toContain("idx_<table>_<col>");
   });
 });

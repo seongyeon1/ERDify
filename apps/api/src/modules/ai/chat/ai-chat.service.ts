@@ -79,6 +79,8 @@ export class AiChatService {
       const focusTableIds = domain.selectRelevantTables(doc, message);
       // ⑤ 의도 분류: 의도별 가이드 + 근거기반 규칙을 프롬프트에 반영
       const intent = classifyIntent(message);
+      // ⑥ 컨벤션 추출: 새 객체 생성 시 기존 규칙을 그대로 따르도록 주입(요약돼도 근거 유지)
+      const conventions = domain.detectConventions(doc);
       const system = buildSystemPrompt(
         doc,
         {
@@ -90,7 +92,7 @@ export class AiChatService {
           today,
         },
         facts,
-        { focusTableIds, intent },
+        { focusTableIds, intent, conventions },
       );
 
       const history = await this.historyService.findRecentTurns(userId, diagramId, sessionId);
