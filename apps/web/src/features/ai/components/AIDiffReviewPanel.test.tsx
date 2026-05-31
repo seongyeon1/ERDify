@@ -204,6 +204,54 @@ describe("AIDiffReviewPanel", () => {
     expect(screen.getByText("deprecated_field")).toBeInTheDocument();
   });
 
+  // ── updateTable (테이블 이름 변경) ───────────────────────────────────────────
+
+  it("updateTable 변경 시 old → new 이름과 '이름 변경' 배지를 렌더링한다", () => {
+    const col = { id: "col-1", name: "contract_id", type: "uuid", nullable: false, primaryKey: true, unique: false, defaultValue: null, comment: null, ordinal: 0 };
+    const currentDoc = makeDoc([{ id: "t1", name: "contract_terms", logicalName: null, comment: null, color: null, columns: [col] }]);
+    const pendingDoc = makeDoc([{ id: "t1", name: "ContractTerms", logicalName: null, comment: null, color: null, columns: [col] }]);
+
+    const diff: DiffChange[] = [{ type: "updateTable", tableId: "t1", oldName: "contract_terms", newName: "ContractTerms" }];
+
+    render(
+      <AIDiffReviewPanel diff={diff} pendingDocument={pendingDoc} currentDocument={currentDoc} onAccept={onAccept} onReject={onReject} />
+    );
+
+    expect(screen.getByText("contract_terms")).toBeInTheDocument();
+    expect(screen.getByText("ContractTerms")).toBeInTheDocument();
+    expect(screen.getByText("이름 변경")).toBeInTheDocument();
+  });
+
+  it("이름만 바뀐 테이블도 기존 컬럼을 그대로 표시한다", () => {
+    const col = { id: "col-1", name: "contract_id", type: "uuid", nullable: false, primaryKey: true, unique: false, defaultValue: null, comment: null, ordinal: 0 };
+    const currentDoc = makeDoc([{ id: "t1", name: "contract_terms", logicalName: null, comment: null, color: null, columns: [col] }]);
+    const pendingDoc = makeDoc([{ id: "t1", name: "ContractTerms", logicalName: null, comment: null, color: null, columns: [col] }]);
+
+    render(
+      <AIDiffReviewPanel
+        diff={[{ type: "updateTable", tableId: "t1", oldName: "contract_terms", newName: "ContractTerms" }]}
+        pendingDocument={pendingDoc}
+        currentDocument={currentDoc}
+        onAccept={onAccept}
+        onReject={onReject}
+      />
+    );
+
+    expect(screen.getByText("contract_id")).toBeInTheDocument();
+  });
+
+  // ── catch-all (시각화되지 않은 변경은 '기타 변경'으로 노출) ────────────────────
+
+  it("알려지지 않은 변경 타입도 '기타 변경' 섹션에 노출해 누락을 막는다", () => {
+    const diff = [{ type: "futureChange", detail: "x" }] as unknown as DiffChange[];
+
+    render(
+      <AIDiffReviewPanel diff={diff} pendingDocument={makeEmptyDoc()} currentDocument={null} onAccept={onAccept} onReject={onReject} />
+    );
+
+    expect(screen.getByText("기타 변경")).toBeInTheDocument();
+  });
+
   // ── 수락 / 거절 버튼 ─────────────────────────────────────────────────────────
 
   it("'수락' 버튼 클릭 시 onAccept를 호출한다", () => {

@@ -23,7 +23,15 @@ interface TableReview {
   tableId: string;
   tableName: string;
   changeType: "added" | "removed" | "modified";
+  /** 이름이 바뀐 경우 이전 이름(헤더에 old → new로 표시). */
+  renamedFrom?: string;
   columns: ColumnReview[];
+}
+
+/** 어떤 섹션으로도 시각화되지 않은 변경. 카운트와 화면이 어긋나지 않도록 항상 노출한다. */
+interface OtherChange {
+  id: string;
+  label: string;
 }
 
 interface RelationReview {
@@ -38,8 +46,9 @@ const buildReview = (
   diff: DiffChange[],
   currentDoc: DiagramDocument | null,
   pendingDoc: DiagramDocument,
-): { tables: TableReview[]; relations: RelationReview[]; indexes: IndexReview[] } => {
+): { tables: TableReview[]; relations: RelationReview[]; indexes: IndexReview[]; others: OtherChange[] } => {
   const tableMap = new Map<string, TableReview>();
+  const others: OtherChange[] = [];
 
   const getTableReview = (tableId: string, tableName: string, changeType: TableReview["changeType"]): TableReview => {
     if (!tableMap.has(tableId)) {
@@ -48,8 +57,14 @@ const buildReview = (
     return tableMap.get(tableId)!;
   };
 
-  for (const change of diff) {
+  for (const [i, change] of diff.entries()) {
     switch (change.type) {
+      case "updateTable": {
+        const review = getTableReview(change.tableId, change.newName, "modified");
+        review.tableName = change.newName;
+        review.renamedFrom = change.oldName;
+        break;
+      }
       case "addTable": {
         const entity = pendingDoc.entities.find((e) => e.id === change.tableId);
         const review = getTableReview(change.tableId, change.tableName, "added");
@@ -90,6 +105,16 @@ const buildReview = (
         }
         break;
       }
+      // 관계/인덱스는 아래에서 따로 모으므로 여기서는 통과시킨다.
+      case "addRelation":
+      case "removeRelation":
+      case "addIndex":
+        break;
+      // 시각화 케이스가 없는 변경(향후 추가될 타입 등)은 절대 조용히 버리지 않고 '기타 변경'에 노출한다.
+      default: {
+        const unknown = change as { type?: string };
+        others.push({ id: `other-${i}`, label: unknown.type ?? "알 수 없는 변경" });
+      }
     }
   }
 
@@ -125,8 +150,15 @@ const buildReview = (
     .filter((c): c is Extract<DiffChange, { type: "addIndex" }> => c.type === "addIndex")
     .map((c) => ({ indexId: c.indexId, tableName: c.tableName, indexName: c.indexName, columnNames: c.columnNames, unique: c.unique }));
 
-  return { tables: Array.from(tableMap.values()), relations, indexes };
+  return { tables: Array.from(tableMap.values()), relations, indexes, others };
 };
+
+const hasColumnChanges = (table: TableReview): boolean =>
+  table.columns.some((c) => c.changeType !== "unchanged");
+
+/** 테이블 카드 배지: 이름만 바뀐 경우 '이름 변경', 그 외에는 변경 종류 라벨. */
+const tableBadgeLabel = (table: TableReview): string =>
+  table.renamedFrom && !hasColumnChanges(table) ? "이름 변경" : CHANGE_LABEL[table.changeType];
 
 const CHANGE_LABEL: Record<TableReview["changeType"], string> = {
   added: "추가됨",
@@ -169,7 +201,7 @@ interface AIDiffReviewPanelProps {
 }
 
 export const AIDiffReviewPanel = ({ diff, pendingDocument, currentDocument, onAccept, onReject }: AIDiffReviewPanelProps) => {
-  const { tables, relations, indexes } = buildReview(diff, currentDocument, pendingDocument);
+  const { tables, relations, indexes, others } = buildReview(diff, currentDocument, pendingDocument);
 
   return (
     <div className={css.overlay} onClick={(e) => { if (e.target === e.currentTarget) onReject(); }}>
@@ -189,8 +221,16 @@ export const AIDiffReviewPanel = ({ diff, pendingDocument, currentDocument, onAc
                 {tables.map((table) => (
                   <div key={table.tableId} className={tableCardClass(table.changeType)}>
                     <div className={tableHeaderClass(table.changeType)}>
-                      <span className={css.tableName}>{table.tableName}</span>
-                      <span className={css.tableChangeBadge}>{CHANGE_LABEL[table.changeType]}</span>
+                      {table.renamedFrom && table.renamedFrom !== table.tableName ? (
+                        <span className={css.tableName}>
+                          <span style={{ textDecoration: "line-through", opacity: 0.6 }}>{table.renamedFrom}</span>
+                          {" → "}
+                          <span>{table.tableName}</span>
+                        </span>
+                      ) : (
+                        <span className={css.tableName}>{table.tableName}</span>
+                      )}
+                      <span className={css.tableChangeBadge}>{tableBadgeLabel(table)}</span>
                     </div>
                     <div className={css.columnList}>
                       {table.columns.map((col) => (
@@ -236,6 +276,20 @@ export const AIDiffReviewPanel = ({ diff, pendingDocument, currentDocument, onAc
                     <span>{rel.changeType === "added" ? "+" : "-"}</span>
                     <span>{rel.fromTable} → {rel.toTable}</span>
                     {rel.cardinality && <span style={{ opacity: 0.7, fontSize: "11px" }}>({rel.cardinality})</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {others.length > 0 && (
+            <div>
+              <div className={css.sectionTitle}>기타 변경</div>
+              <div className={css.relationsSection}>
+                {others.map((o) => (
+                  <div key={o.id} className={css.relationRow}>
+                    <span>•</span>
+                    <span>{o.label}</span>
                   </div>
                 ))}
               </div>
